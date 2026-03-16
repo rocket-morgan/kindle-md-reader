@@ -2,9 +2,12 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import { serialize, parse } from 'cookie';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +20,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'secret';
 const COOKIE_NAME = 'ks';
 const FONT_SIZES = [16, 18, 20, 22, 24, 26, 28];
 const DEFAULT_FONT_SIZE = 18;
+const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n*/;
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
@@ -66,19 +70,32 @@ const layout = (req, title, body, nav = true) => {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font:${fontSize}px/1.6 Georgia,serif;padding:15px;padding-top:70px;background:#fff;color:#000}
-a{color:#000}h1{font-size:1.3em;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:15px}h2{font-size:1.1em;margin:15px 0 8px}ul,ol{margin:8px 0 8px 20px}li{margin-bottom:5px}pre{background:#eee;padding:8px;overflow-x:auto;font-size:0.85em}code{background:#eee;padding:1px 3px}blockquote{border-left:3px solid #000;padding-left:12px;margin:10px 0}input,button{font:inherit;padding:12px;border:2px solid #000;width:100%;margin-bottom:10px}button{background:#000;color:#fff}.item{display:block;padding:12px 8px;border-bottom:1px solid #ccc}.crumbs{margin-bottom:10px}.err{color:red;border:1px solid red;padding:8px;margin-bottom:10px}</style>
+a{color:#000}h1{font-size:1.3em;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:15px}h2{font-size:1.1em;margin:15px 0 8px}h3{font-size:1em;margin:12px 0 6px}p{margin:10px 0}ul,ol{margin:8px 0 8px 20px}li{margin-bottom:5px}pre{background:#eee;padding:8px;overflow-x:auto;font-size:0.85em;white-space:pre-wrap;word-break:break-word}code{background:#eee;padding:1px 3px}blockquote{border-left:3px solid #000;padding-left:12px;margin:10px 0}table{width:100%;border-collapse:collapse;margin:12px 0;font-size:0.92em}th,td{border:1px solid #000;padding:6px;vertical-align:top;text-align:left}thead th{background:#eee}input,button{font:inherit;padding:12px;border:2px solid #000;width:100%;margin-bottom:10px}button{background:#000;color:#fff}.item{display:block;padding:12px 8px;border-bottom:1px solid #ccc}.crumbs{margin-bottom:10px}.err{color:red;border:1px solid red;padding:8px;margin-bottom:10px}</style>
 </head><body>${fontControls}${nav ? '<p style="margin-bottom:15px"><a href="/">← Inicio</a> <a href="/logout" style="float:right">Salir</a></p>' : ''}${body}</body></html>`;
 };
 
 const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const stripFrontmatter = (md) => md.replace(FRONTMATTER_RE, '');
 
 const mdToHtml = (md) => {
-  const raw = marked.parse(md, { mangle: false, headerIds: false });
+  const raw = marked.parse(stripFrontmatter(md), {
+    gfm: true,
+    breaks: true,
+    mangle: false,
+    headerIds: false,
+  });
   return sanitizeHtml(raw, {
-    allowedTags: ['h1','h2','h3','p','ul','ol','li','pre','code','blockquote','strong','em','a','hr','br','span'],
-    allowedAttributes: { a: ['href'] },
+    allowedTags: ['h1','h2','h3','p','ul','ol','li','pre','code','blockquote','strong','em','a','hr','br','span','table','thead','tbody','tr','th','td'],
+    allowedAttributes: { a: ['href', 'target', 'rel'] },
     transformTags: {
-      a: (tag, attribs) => ({ tagName: 'a', attribs: { href: attribs.href || '#', target: '_blank' } }),
+      a: (tag, attribs) => ({
+        tagName: 'a',
+        attribs: {
+          href: attribs.href || '#',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
     },
   });
 };

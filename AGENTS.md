@@ -24,7 +24,8 @@ Servidor Node/Express que lista carpetas y archivos Markdown, renderiza HTML min
 ## Dev
 ```
 npm install --include=dev
-PORT=4000 AUTH_PASS=pass SESSION_SECRET=secret node server.js
+PORT=4000 AUTH_PASS=pass SESSION_SECRET=secret # or use .env content if that file exist
+node server.js
 ```
 
 Playwright smoke test (requiere server arriba en 4000):
